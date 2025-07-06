@@ -1,0 +1,46 @@
+Add-Type -AssemblyName System.Windows.Forms
+
+# Boîte de dialogue pour choisir le fichier PDF
+$openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+$openFileDialog.Filter = "Fichiers PDF (*.pdf)|*.pdf"
+$openFileDialog.Title = "Sélectionnez un fichier PDF"
+$null = $openFileDialog.ShowDialog()
+
+if ($openFileDialog.FileName -and (Test-Path $openFileDialog.FileName)) {
+    $pdfPath = $openFileDialog.FileName
+
+    # Boîte de dialogue pour enregistrer le fichier DOC
+    $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveFileDialog.Filter = "Fichier Word (*.docx)|*.docx"
+    $saveFileDialog.Title = "Enregistrer sous"
+    $saveFileDialog.FileName = [System.IO.Path]::GetFileNameWithoutExtension($pdfPath) + ".docx"
+    $null = $saveFileDialog.ShowDialog()
+
+    if ($saveFileDialog.FileName) {
+        $docPath = $saveFileDialog.FileName
+
+        # Lancement de Word
+        $word = New-Object -ComObject Word.Application
+        $word.Visible = $false
+
+        try {
+            $doc = $word.Documents.Open($pdfPath, [ref]$false, [ref]$true)
+            $doc.SaveAs([ref]$docPath, [ref]16)  # 16 = wdFormatDocumentDefault (docx)
+            $doc.Close()
+            [System.Windows.Forms.MessageBox]::Show("Conversion réussie !", "Succès", "OK", "Information")
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Erreur lors de la conversion : $_", "Erreur", "OK", "Error")
+        }
+        finally {
+            $word.Quit()
+            [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+        }
+    }
+    else {
+        Write-Host "Opération annulée lors de l'enregistrement."
+    }
+}
+else {
+    Write-Host "Aucun fichier PDF sélectionné."
+}
